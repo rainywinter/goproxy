@@ -9,6 +9,7 @@ import (
 	"os"
 	"regexp"
 	"sync/atomic"
+	socks5 "golang.org/x/net/proxy"
 )
 
 // The basic proxy type. Implements http.Handler.
@@ -145,7 +146,11 @@ func (proxy *ProxyHttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 }
 
 // New proxy server, logs to StdErr by default
-func NewProxyHttpServer() *ProxyHttpServer {
+func NewProxyHttpServer(socks5Addr string) *ProxyHttpServer {
+	dialer , err := socks5.SOCKS5("tcp",socks5Addr,nil,&net.Dialer{})
+	if err!=nil{
+		panic(err)
+	}
 	proxy := ProxyHttpServer{
 		Logger:        log.New(os.Stderr, "", log.LstdFlags),
 		reqHandlers:   []ReqHandler{},
@@ -155,8 +160,9 @@ func NewProxyHttpServer() *ProxyHttpServer {
 			http.Error(w, "This is a proxy server. Does not respond to non-proxy requests.", 500)
 		}),
 		Tr: &http.Transport{TLSClientConfig: tlsClientSkipVerify,
-			Proxy: http.ProxyFromEnvironment},
+			//Proxy: http.ProxyFromEnvironment},
+			Dial:dialer.Dial},
 	}
-	proxy.ConnectDial = dialerFromEnv(&proxy)
+	//proxy.ConnectDial = dialerFromEnv(&proxy)
 	return &proxy
 }
